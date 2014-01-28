@@ -6,7 +6,7 @@ module ContactsService
   def self.boiler_config
     {
       :skip_authentication => true,
-      :assets_dir => File.join(project_root, 'public'),
+      :assets_dir => ENV['ASSETS_DIR'] || File.join(project_root, 'public'),
       :asset_roots => [
         File.join(project_root, 'src')
       ],
