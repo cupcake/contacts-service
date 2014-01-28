@@ -11,6 +11,12 @@ ENV                  | Required | Description
 `ALLOWED_ORIGIN`     | Required | JavaScript Regex string (excluding `/`s) describing the allowed origin the daemon may accept requests from (e.g. "^https:\\/\\/example.com\\/?").
 `SENTRY_URL`         | Optional | See [boiler-web](https://github.com/cupcake/boiler-web) for details.
 `ALLOWED_ORIGIN_CSP` | Dev app  | CSP source for frame-ancestors and frame-src
+=======
+ENV              | Required | Description
+---------------- | -------- | -----------
+`URL`            | Required | URL of daemon.
+`ALLOWED_ORIGIN` | Required | JavaScript Regex string (excluding `/`s) describing the allowed origin the daemon may accept requests from (e.g. "^https:\\/\\/example.com\\/?").
+`SENTRY_URL`     | Optional | See [boiler-web](https://github.com/cupcake/boiler-web) for details.
 
 ## API Client
 
