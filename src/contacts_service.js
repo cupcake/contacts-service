@@ -1,3 +1,7 @@
+//= require_self
+//= require ./service_config
+//= require ./service_boot
+
 (function () {
 
   "use strict";
@@ -29,7 +33,7 @@
 	};
 
 	// Simple scoring algorithm
-	StringScore = function (str, abbr) {
+	var StringScore = function (str, abbr) {
 		str = str.toLowerCase();
 		abbr = abbr.toLowerCase();
 
@@ -50,15 +54,13 @@
 		return abbr.length / str.length;
 	};
 
-	var Contacts = {};
+  var Contacts = window.TentContactsService = {};
 	Contacts.displayName = "TentContacts (Daemon)";
 
 	var __syncInterval;
 
 	var __listeners = {};
 	var __listenersMapping = {};
-
-	Contacts.allowedOrigin = /<%= ENV['CONTACTS_ALLOWED_ORIGIN'] || '^.+$' %>/;
 
 	// listen to postMessage
 	Contacts.run = function () {
@@ -336,7 +338,5 @@
 			delete __listeners[entity];
 		}
 	};
-
-	Contacts.run();
 
 })();
