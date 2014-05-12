@@ -5,7 +5,7 @@
   </head>
 
   <body>
-    <% if Boiler.settings[:sentry_url] %>
+    <% if ENV['SENTRY_URL'] %>
       <script type='application/javascript' src='<%= asset_path('raven.js') %>'></script>
       <script type='application/javascript' src='<%= asset_path('raven_config.js') %>'></script>
     <% end %>

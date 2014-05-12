@@ -1,30 +1,22 @@
-module ContactsService
-  def self.project_root
-    @project_root ||= File.expand_path(File.dirname(__FILE__))
-  end
+require 'static-sprockets'
+require 'marbles-js'
+require 'marbles-tent-client-js'
+require 'raven-js'
+require 'yajl'
 
-  def self.boiler_config
-    {
-      :skip_authentication => true,
-      :assets_dir => File.join(project_root, 'public'),
-      :asset_roots => [
-        File.join(project_root, 'src')
-      ],
-      :asset_names => %w(
-        raven.js
-        raven_config.js
-        marbles.js
-        tent-client.js
-        contacts_api.js
-        contacts_service.js
-      ),
-      :layout_roots => [
-        File.join(project_root, 'layout')
-      ],
-      :layouts => [{
-        :name => :contacts_service,
-        :route => '/*'
-      }]
-    }
-  end
+StaticSprockets.sprockets_config do |environment|
+  MarblesJS::Sprockets.setup(environment)
+  MarblesTentClientJS::Sprockets.setup(environment)
+  RavenJS::Sprockets.setup(environment)
 end
+
+StaticSprockets.configure(
+  :asset_roots => [
+    File.expand_path(File.dirname(__FILE__)),
+  ],
+  :asset_types => %w( src ), # we only have javascripts and they're in {root}/src
+  :layout => File.expand_path(File.join(File.dirname(__FILE__), 'layout', 'contacts_service.html.erb')),
+  :layout_output_name => 'contacts_service.html',
+  :output_dir => ENV['OUTPUT_DIR'] || File.expand_path(File.join(File.dirname(__FILE__), 'build')),
+  :asset_root => ENV['ASSET_ROOT'] || "/assets"
+)
