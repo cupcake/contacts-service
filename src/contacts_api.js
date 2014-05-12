@@ -1,5 +1,7 @@
 (function () {
 
+	"use strict";
+
 	var Contacts = window.TentContacts = {};
 	Contacts.displayName = "window.TentContacts";
 
@@ -24,7 +26,7 @@
 		}
 
 		if (!Contacts.daemonURL) {
-			throw Error(Contacts.displayName +".daemonURL must be set!");
+			throw new Error(Contacts.displayName +".daemonURL must be set!");
 		}
 
 		window.addEventListener("message", Contacts.receiveMessage, false);
@@ -119,7 +121,7 @@
 		// with `id`, and `res` members
 
 		if (!event.data.id) {
-			throw Error(Contacts.displayName +".receiveMessage: Missing id: "+ JSON.stringify(event.data));
+			throw new Error(Contacts.displayName +".receiveMessage: Missing id: "+ JSON.stringify(event.data));
 		}
 
 		var callback = Contacts.__callbacks[event.data.id];
@@ -134,7 +136,7 @@
 		}
 
 		if (typeof callback !== 'function') {
-			throw Error(Contacts.displayName +".receiveMessage: Invalid callback: "+ JSON.stringify(callback) +" for event: "+ JSON.stringify(event.data));
+			throw new Error(Contacts.displayName +".receiveMessage: Invalid callback: "+ JSON.stringify(callback) +" for event: "+ JSON.stringify(event.data));
 		}
 
 		callback.call(thisArg, event.data.res);
