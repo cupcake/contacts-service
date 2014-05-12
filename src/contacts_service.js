@@ -149,7 +149,7 @@
 	// fetch new relationships and cached update names and avatars
 	Contacts.sync = function () {
 		if (!Contacts.client) {
-			throw Error(Contacts.displayName +": Can not sync without Tent client!");
+			throw new Error(Contacts.displayName +": Can not sync without Tent client!");
 		}
 
 		var cursor = Contacts.cache.get('cursor');
@@ -164,7 +164,7 @@
 			};
 		}
 
-		var handleSuccess = function (res, xhr) {
+		var handleSuccess = function (res) {
 			if (!res.posts.length) {
 				// empty response
 				return;
@@ -186,10 +186,12 @@
 			// cache returned profiles
 			var entity, profile, name, avatarDigest;
 			for (entity in res.profiles) {
-				profile = res.profiles[entity];
-				name = profile.name || entity.replace(/^https?:\/\//, '');
-				avatarDigest = profile.avatar_digest;
-				Contacts.cacheProfile(entity, name, avatarDigest);
+				if (res.profiles.hasOwnProperty(entity)) {
+					profile = res.profiles[entity];
+					name = profile.name || entity.replace(/^https?:\/\//, '');
+					avatarDigest = profile.avatar_digest;
+					Contacts.cacheProfile(entity, name, avatarDigest);
+				}
 			}
 		};
 
@@ -206,7 +208,7 @@
 			callback: {
 				success: successCallback,
 				failure: function (res, xhr) {
-					throw Error(Contacts.displayName +": Failed to fetch relationships - "+ xhr.status +": "+ JSON.stringify(res));
+					throw new Error(Contacts.displayName +": Failed to fetch relationships - "+ xhr.status +": "+ JSON.stringify(res));
 				}
 			}
 		});
@@ -329,7 +331,7 @@
 		__listenersMapping[eventID] = entity;
 	};
 
-	Contacts.offChange = function (eventID, callback) {
+	Contacts.offChange = function (eventID) {
 		var entity = __listenersMapping[eventID];
 		delete __listenersMapping[eventID];
 		__listeners[entity] = __listeners[entity] || {};
