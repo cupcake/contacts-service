@@ -11,6 +11,20 @@ var TentContactsService = {};
 
   "use strict";
 
+	var ports = [];
+
+	var console = {
+		log: function () {
+			var args = Array.prototype.slice.call(arguments);
+			ports.forEach(function (port) {
+				port.postMessage({
+					name: "console",
+					args: args
+				});
+			});
+		}
+	};
+
 	// Simple localStorage abstration
 	var Cache = function () {
 		this.namespace = 'c';
@@ -109,6 +123,7 @@ var TentContactsService = {};
 
 	Contacts.receiveConnection = function (event) {
 		var port = event.ports[0];
+		ports.push(port);
 		port.onmessage = function (e) {
 			Contacts.receiveMessage(e, port);
 		};

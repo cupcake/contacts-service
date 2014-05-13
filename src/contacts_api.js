@@ -167,7 +167,7 @@
 		}
 
 		if (event.data.name === 'console') {
-			window.console.log(event.data);
+			window.console.log(event.data.args);
 			return;
 		}
 
