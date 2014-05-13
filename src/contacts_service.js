@@ -14,24 +14,27 @@ var TentContactsService = {};
 	// Simple localStorage abstration
 	var Cache = function () {
 		this.namespace = 'c';
+		this.__cache = {};
 	};
 	Cache.prototype.expandKey = function (key) {
 		return this.namespace +':'+ key;
 	};
 	Cache.prototype.set = function (key, val) {
 		if ( typeof localStorage === "undefined" ) {
+			this.__cache[key] = val;
 			return;
 		}
 		window.localStorage.setItem(this.expandKey(key), JSON.stringify(val));
 	};
 	Cache.prototype.get = function (key) {
 		if ( typeof localStorage === "undefined" ) {
-			return null;
+			return this.__cache[key];
 		}
 		return JSON.parse(window.localStorage.getItem(this.expandKey(key)));
 	};
 	Cache.prototype.remove = function (key) {
 		if ( typeof localStorage === "undefined" ) {
+			delete this.__cache[key];
 			return;
 		}
 		window.localStorage.removeItem(this.expandKey(key));
