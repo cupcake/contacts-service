@@ -15,6 +15,7 @@
 	Contacts.__listeners = {};
 	Contacts.__listenerIDMapping = {};
 	Contacts.__listenerIDCounter = 0;
+	Contacts.__listenerReqIDMapping = {};
 
 	// list of requests created before daemon activated.
 	Contacts.sendQueue = [];
@@ -129,6 +130,8 @@
 		} else {
 			Contacts.sendQueue.push(data);
 		}
+
+		return data.id;
 	};
 
 	Contacts.deliverMessage = function (data) {
@@ -168,6 +171,11 @@
 			return;
 		}
 
+		var deleteCallback = true;
+		if (event.data.name === 'onChange') {
+			deleteCallback = false;
+		}
+
 		// each message must be an object
 		// with `id`, and `res` members
 
@@ -176,10 +184,14 @@
 		}
 
 		var callback = Contacts.__callbacks[event.data.id];
-		delete Contacts.__callbacks[event.data.id];
+		if (deleteCallback) {
+			delete Contacts.__callbacks[event.data.id];
+		}
 
 		var thisArg = Contacts.__callbackBindings[event.data.id];
-		delete Contacts.__callbackBindings[event.data.id];
+		if (deleteCallback) {
+			delete Contacts.__callbackBindings[event.data.id];
+		}
 
 		if (typeof callback === null) {
 			// Allow callback to be explicitly omitted
@@ -225,13 +237,17 @@
 
 		_listenerIDMapping[id] = entity;
 
-		Contacts.sendMessage('onChange', [id, entity], callback, thisArg);
+		var reqId = Contacts.sendMessage('onChange', [id, entity], callback, thisArg);
+		var _reqIdMapping = Contacts.__listenerReqIDMapping;
+		_reqIdMapping[id] = reqId;
+
 		return id;
 	};
 
 	Contacts.offChange = function (id, callback, thisArg) {
 		var _listeners = Contacts.__listeners,
 				_entity = Contacts.__listenerIDMapping[id],
+				_reqIDMapping = Contacts.__listenerReqIDMapping,
 				_entityListeners = (_listeners[_entity] || []),
 				_tmp, i, _len;
 
@@ -248,6 +264,11 @@
 		if (_tmp.length === 0) {
 			delete _listeners[_entity];
 		}
+
+		var reqId = _reqIDMapping[id];
+		delete Contacts.__callbacks[reqId];
+		delete Contacts.__callbackBindings[reqId];
+		delete _reqIDMapping[id];
 	};
 
 })();

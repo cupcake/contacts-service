@@ -127,11 +127,14 @@ var TentContactsService = {};
 		// the args to call it with, and the id with
 		// which the response should be associated.
 
-		var callback = function (res) {
+		var callback = function (res, name) {
 			var data = {
 				id: event.data.id,
 				res: res
 			};
+			if (name) {
+				data.name = name;
+			}
 			if (port) {
 				port.postMessage(data);
 			} else {
@@ -294,7 +297,7 @@ var TentContactsService = {};
 			if (!_ref.hasOwnProperty(eventID)) {
 				continue;
 			}
-			_ref[eventID](newProfile, oldProfile);
+			_ref[eventID](newProfile, "onChange");
 		}
 	};
 
