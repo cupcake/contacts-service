@@ -1,6 +1,11 @@
+//= require marbles/http
+//= require marbles/http/middleware
+//= require tent-client
 //= require_self
 //= require ./service_config
 //= require ./service_boot
+
+var TentContactsService = {};
 
 (function () {
 
@@ -14,19 +19,19 @@
 		return this.namespace +':'+ key;
 	};
 	Cache.prototype.set = function (key, val) {
-		if (!window.localStorage) {
+		if ( (typeof window === "undefined") || !window.localStorage ) {
 			return;
 		}
 		window.localStorage.setItem(this.expandKey(key), JSON.stringify(val));
 	};
 	Cache.prototype.get = function (key) {
-		if (!window.localStorage) {
+		if ( (typeof window === "undefined") || !window.localStorage ) {
 			return null;
 		}
 		return JSON.parse(window.localStorage.getItem(this.expandKey(key)));
 	};
 	Cache.prototype.remove = function (key) {
-		if (!window.localStorage) {
+		if ( (typeof window === "undefined") || !window.localStorage ) {
 			return;
 		}
 		window.localStorage.removeItem(this.expandKey(key));
@@ -54,7 +59,7 @@
 		return abbr.length / str.length;
 	};
 
-  var Contacts = window.TentContactsService = {};
+  var Contacts = TentContactsService;
 	Contacts.displayName = "TentContacts (Daemon)";
 
 	var __syncInterval;
@@ -64,10 +69,17 @@
 
 	// listen to postMessage
 	Contacts.run = function () {
+		if (typeof window === "undefined") {
+			return;
+		}
 		window.addEventListener("message", Contacts.receiveMessage, false);
 	};
 
 	Contacts.init = function () {
+		if (Contacts.ready) {
+			return;
+		}
+		Contacts.ready = true;
 		Contacts.setCredentials.apply(null, arguments);
 		Contacts.cache = new Cache();
 		__syncInterval = setInterval(Contacts.sync, 14400000); // sync every 4 hours
@@ -92,9 +104,21 @@
 		clearInterval(__syncInterval);
 	};
 
-	Contacts.receiveMessage = function (event) {
-		if (!Contacts.allowedOrigin.test(event.origin)) {
-			return; // ignore everything from "un-trusted" hosts
+	Contacts.receiveConnection = function (event) {
+		var port = event.ports[0];
+		port.onmessage = function (e) {
+			Contacts.receiveMessage(e, port);
+		};
+		port.postMessage({
+			name: "ping"
+		});
+	};
+
+	Contacts.receiveMessage = function (event, port) {
+		if (typeof window !== "undefined") {
+			if (!Contacts.allowedOrigin.test(event.origin)) {
+				return; // ignore everything from "un-trusted" hosts
+			}
 		}
 
 		// each message must be an object
@@ -104,10 +128,15 @@
 		// which the response should be associated.
 
 		var callback = function (res) {
-			event.source.postMessage({
+			var data = {
 				id: event.data.id,
 				res: res
-			}, event.origin);
+			};
+			if (port) {
+				port.postMessage(data);
+			} else {
+				event.source.postMessage(data, event.origin);
+			}
 		};
 
 		switch (event.data.name) {

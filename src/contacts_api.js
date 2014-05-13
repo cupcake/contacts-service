@@ -19,27 +19,17 @@
 	// list of requests created before daemon activated.
 	Contacts.sendQueue = [];
 
-	Contacts.run = function () {
+	Contacts.runIframe = function (sendPing) {
 		if (Contacts.iframe) {
 			// Don't load more than once
 			return;
 		}
 
-		if (!Contacts.daemonURL) {
+		if ( !Contacts.daemonURL ) {
 			throw new Error(Contacts.displayName +".daemonURL must be set!");
 		}
 
 		window.addEventListener("message", Contacts.receiveMessage, false);
-
-		function sendPing() {
-			var initData = {
-				name: 'init',
-				id: 'init',
-				args: [Contacts.entity, Contacts.serverMetaPost, Contacts.credentials],
-				callback: Contacts.daemonReady
-			};
-			Contacts.deliverMessage(initData);
-		}
 
 		var iframe = document.createElement('iframe');
 		iframe.src = Contacts.daemonURL;
@@ -57,6 +47,50 @@
 		Contacts.iframe = iframe;
 
 		iframe.addEventListener("load", sendPing, false);
+	};
+
+	Contacts.runSharedWorker = function (sendPing) {
+		if ( !Contacts.workerURL ) {
+			setTimeout(function () {
+				throw new Error(Contacts.displayName +".workerURL must be set! Falling back to iframe.");
+			}, 0);
+			this.runIframe();
+			return;
+		}
+
+		var initFn = function (e) {
+			if (e.data.name === "ping") {
+				sendPing();
+				worker.removeEventListener("message", initFn, false);
+			}
+		};
+
+		var worker = new SharedWorker(Contacts.workerURL);
+		Contacts.worker = worker;
+		worker.port.addEventListener("message", Contacts.receiveMessage, false);
+		worker.port.addEventListener("message", initFn, false);
+		worker.onerror = function (event) {
+			throw new Error(event.message + " (" + event.filename + ":" + event.lineno + ")");
+		};
+		worker.port.start();
+	};
+
+	Contacts.run = function () {
+		function sendPing() {
+			var initData = {
+				name: 'init',
+				id: 'init',
+				args: [Contacts.entity, Contacts.serverMetaPost, Contacts.credentials],
+				callback: Contacts.daemonReady
+			};
+			Contacts.deliverMessage(initData);
+		}
+
+		if (window.SharedWorker) {
+			this.runSharedWorker(sendPing);
+		} else {
+			this.runIframe(sendPing);
+		}
 	};
 
 	Contacts.stop = function (callback) {
@@ -103,17 +137,34 @@
 		delete data.callback;
 		delete data.thisArg;
 
-		Contacts.iframe.contentWindow.postMessage(data, Contacts.daemonURL);
+		if (Contacts.iframe) {
+			Contacts.iframe.contentWindow.postMessage(data, Contacts.daemonURL);
+		} else {
+			Contacts.worker.port.postMessage(data);
+		}
 	};
 
 	Contacts.receiveMessage = function (event) {
-		if (Contacts.daemonURL.substr(0, event.origin.length) !== event.origin) {
-			return; // ignore everything not from the iframe
+		if (Contacts.iframe) {
+			if (Contacts.daemonURL.substr(0, event.origin.length) !== event.origin) {
+				return; // ignore everything not from the iframe
+			}
+		}
+
+		if (event.data.name === 'ping') {
+			// used by SharedWorker
+			// let other event handler get this one
+			return;
 		}
 
 		if (event.data.name === 'ready') {
 			// API daemon is ready
 			Contacts.daemonReady();
+			return;
+		}
+
+		if (event.data.name === 'console') {
+			window.console.log(event.data);
 			return;
 		}
 
