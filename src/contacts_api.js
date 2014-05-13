@@ -95,6 +95,10 @@
 	};
 
 	Contacts.stop = function (callback) {
+		if ( !Contacts.ready ) {
+			return;
+		}
+
 		Contacts.credentials = null;
 		Contacts.entity = null;
 		Contacts.sendQueue = [];
@@ -140,10 +144,12 @@
 		delete data.callback;
 		delete data.thisArg;
 
-		if (Contacts.iframe) {
+		if (Contacts.worker) {
+			Contacts.worker.port.postMessage(data);
+		} else if (Contacts.iframe) {
 			Contacts.iframe.contentWindow.postMessage(data, Contacts.daemonURL);
 		} else {
-			Contacts.worker.port.postMessage(data);
+			throw new Error(Contacts.displayName +".deliverMessage: No worker to deliver message to! "+ JSON.stringify(data));
 		}
 	};
 

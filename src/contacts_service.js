@@ -103,15 +103,20 @@ var TentContactsService = {};
 		window.addEventListener("message", Contacts.receiveMessage, false);
 	};
 
-	Contacts.init = function () {
-		if (Contacts.ready) {
-			return;
-		}
-		Contacts.ready = true;
-		Contacts.setCredentials.apply(null, arguments);
-		Contacts.cache = new Cache();
-		__syncInterval = setInterval(Contacts.sync, 14400000); // sync every 4 hours
-		Contacts.sync();
+	Contacts.init = function (entity, serverMetaPost, credentials, callback) {
+		return new Promise(function (resolve) {
+			if (Contacts.ready) {
+				return;
+			}
+			Contacts.ready = true;
+			Contacts.setCredentials(entity, serverMetaPost, credentials);
+			Contacts.cache = new Cache();
+			__syncInterval = setInterval(Contacts.sync, 14400000); // sync every 4 hours
+			Contacts.sync();
+			resolve();
+		}).then(callback).catch(function (err) {
+			setTimeout(function () { throw err; }, 0);
+		});
 	};
 
 	Contacts.deinit = function () {
@@ -197,8 +202,7 @@ var TentContactsService = {};
 			break;
 
 			case "init":
-				Contacts.init.apply(null, event.data.args || []);
-				callback();
+				Contacts.init.apply(null, (event.data.args || []).concat([callback]));
 			break;
 
 			case "deinit":
@@ -267,6 +271,7 @@ var TentContactsService = {};
 			}).then(handleSuccess);
 		}).catch(function (err) {
 			setTimeout(function () { throw err; }, 0);
+			console.log("Contacts.sync Error:", String(err));
 		});
 	};
 
