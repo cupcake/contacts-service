@@ -18,6 +18,8 @@
 	"boss": true,
   "browser": true,
 	"globals": {
-		"TentClient": false
+		"TentClient": false,
+		"Marbles": false,
+		"Promise": false
 	}
 }

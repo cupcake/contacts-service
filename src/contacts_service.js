@@ -34,24 +34,35 @@ var TentContactsService = {};
 		return this.namespace +':'+ key;
 	};
 	Cache.prototype.set = function (key, val) {
-		if ( typeof localStorage === "undefined" ) {
-			this.__cache[key] = val;
-			return;
-		}
-		window.localStorage.setItem(this.expandKey(key), JSON.stringify(val));
+		return new Promise(function (resolve) {
+			if ( typeof localStorage === "undefined" ) {
+				this.__cache[key] = val;
+				resolve();
+			} else {
+				window.localStorage.setItem(this.expandKey(key), JSON.stringify(val));
+				resolve();
+			}
+		}.bind(this));
 	};
 	Cache.prototype.get = function (key) {
-		if ( typeof localStorage === "undefined" ) {
-			return this.__cache[key];
-		}
-		return JSON.parse(window.localStorage.getItem(this.expandKey(key)));
+		return new Promise(function (resolve) {
+			if ( typeof localStorage === "undefined" ) {
+				resolve(this.__cache[key]);
+			} else {
+				resolve(JSON.parse(window.localStorage.getItem(this.expandKey(key))));
+			}
+		}.bind(this));
 	};
 	Cache.prototype.remove = function (key) {
-		if ( typeof localStorage === "undefined" ) {
-			delete this.__cache[key];
-			return;
-		}
-		window.localStorage.removeItem(this.expandKey(key));
+		return new Promise(function (resolve) {
+			if ( typeof localStorage === "undefined" ) {
+				delete this.__cache[key];
+				resolve();
+			} else {
+				window.localStorage.removeItem(this.expandKey(key));
+				resolve();
+			}
+		}.bind(this));
 	};
 
 	// Simple scoring algorithm
@@ -104,21 +115,30 @@ var TentContactsService = {};
 	};
 
 	Contacts.deinit = function () {
-		Contacts.cache.remove('cursor');
-
-		var manifest = Contacts.getCacheManifest() || {};
-		Contacts.cache.remove('manifest');
-
-		for (var entity in manifest) {
-			if (!manifest.hasOwnProperty(entity)) {
-				continue;
-			}
-			Contacts.cache.remove(entity);
-		}
-
-		Contacts.client = null;
-		Contacts.cache = null;
-		clearInterval(__syncInterval);
+		return Promise.all([
+			Contacts.cache.remove('cursor'),
+			Contacts.getCacheManifest().then(function (manifest) {
+				return Promise.all([
+					Contacts.cache.remove("manifest"),
+					new Promise(function (resolve) {
+						for (var entity in manifest) {
+							if (!manifest.hasOwnProperty(entity)) {
+								continue;
+							}
+							Contacts.cache.remove(entity);
+						}
+						resolve();
+					})
+				]);
+			})
+		]).then(function () {
+			Contacts.client = null;
+			Contacts.cache = null;
+			clearInterval(__syncInterval);
+		}).catch(function (err) {
+			console.log("Error:", String(err));
+			throw err;
+		});
 	};
 
 	Contacts.receiveConnection = function (event) {
@@ -202,65 +222,69 @@ var TentContactsService = {};
 			throw new Error(Contacts.displayName +": Can not sync without Tent client!");
 		}
 
-		var cursor = Contacts.cache.get('cursor');
-		if (cursor && ((Date.now() - cursor.updated_at) > 86400000)) {
-			// refresh everything every 24 hours
-			cursor = null;
-		}
-		if (!cursor) {
-			cursor = {
-				since: 0,
-				updated_at: Date.now()
-			};
-		}
-
-		var handleSuccess = function (res) {
-			if (!res.posts.length) {
-				// empty response
-				return;
+		return Contacts.cache.get('cursor').then(function (cursor) {
+			if (cursor && ((Date.now() - cursor.updated_at) > 86400000)) {
+				// refresh everything every 24 hours
+				cursor = null;
+			}
+			if (!cursor) {
+				cursor = {
+					since: 0,
+					updated_at: Date.now()
+				};
 			}
 
-			// update cursor
-			var latestPost = res.posts[0];
-			cursor = {
-				since: latestPost.received_at +" "+ latestPost.version.id,
-				updated_at: Date.now()
-			};
-			Contacts.cache.set('cursor', cursor);
-
-			// fetch the next page
-			Contacts.fetch({
-				since: cursor.since
-			}, handleSuccess);
-
-			// cache returned profiles
-			var entity, profile, name, avatarDigest;
-			for (entity in res.profiles) {
-				if (res.profiles.hasOwnProperty(entity)) {
-					profile = res.profiles[entity];
-					name = profile.name || entity.replace(/^https?:\/\//, '');
-					avatarDigest = profile.avatar_digest;
-					Contacts.cacheProfile(entity, name, avatarDigest);
+			var handleSuccess = function (res) {
+				if (!res.posts.length) {
+					// empty response
+					return;
 				}
-			}
-		};
 
-		Contacts.fetch({
-			since: cursor.since
-		}, handleSuccess);
+				// update cursor
+				var latestPost = res.posts[0];
+				cursor = {
+					since: latestPost.received_at +" "+ latestPost.version.id,
+					updated_at: Date.now()
+				};
+
+				return Contacts.cache.set('cursor', cursor).then(function () {
+					// cache returned profiles
+					return Promise.all(Object.keys(res.profiles).map(function (entity) {
+						var profile = res.profiles[entity];
+						var name = profile.name || entity.replace(/^https?:\/\//, '');
+						var avatarDigest = profile.avatar_digest;
+						return Contacts.cacheProfile(entity, name, avatarDigest);
+					}));
+				}).then(function () {
+					// fetch the next page
+					return Contacts.fetch({
+						since: cursor.since
+					}).then(handleSuccess);
+				});
+			};
+
+			return Contacts.fetch({
+				since: cursor.since
+			}).then(handleSuccess);
+		}).catch(function (err) {
+			console.log("Error:", String(err));
+			throw err;
+		});
 	};
 
-	Contacts.fetch = function (params, successCallback) {
-		params.types = ["https://tent.io/types/relationship/v0"];
-		params.profiles = "mentions";
-		Contacts.client.getPostsFeed({
-			params: [params],
-			callback: {
-				success: successCallback,
-				failure: function (res, xhr) {
-					throw new Error(Contacts.displayName +": Failed to fetch relationships - "+ xhr.status +": "+ JSON.stringify(res));
+	Contacts.fetch = function (params) {
+		return new Promise(function (resolve, reject) {
+			params.types = ["https://tent.io/types/relationship/v0"];
+			params.profiles = "mentions";
+			Contacts.client.getPostsFeed({
+				params: [params],
+				callback: {
+					success: resolve,
+					failure: function (res, xhr) {
+						reject(new Error(Contacts.displayName +": Failed to fetch relationships - "+ xhr.status +": "+ JSON.stringify(res)));
+					}
 				}
-			}
+			});
 		});
 	};
 
@@ -269,28 +293,38 @@ var TentContactsService = {};
 	// (used for searching).
 	Contacts.getCacheManifest = function () {
 		if (!Contacts.cache) {
-			return null;
+			return Promise.resolve(null);
 		}
-		return Contacts.cache.get('manifest');
+		return Contacts.cache.get("manifest");
+	};
+
+	Contacts.setCacheManifest = function (newManifest) {
+		return Contacts.cache.get("manifest").then(function (manifest) {
+			manifest = Marbles.Utils.extend({}, manifest || {}, newManifest);
+			return Contacts.cache.set("manifest", manifest);
+		});
 	};
 
 	Contacts.cacheProfile = function (entity, name, avatarDigest) {
-		var profile = Contacts.cache.get(entity);
-		var newProfile = {
-			name: name
-		};
-		if (avatarDigest) {
-			newProfile.avatarDigest = avatarDigest;
-		}
-		Contacts.cache.set(entity, newProfile);
-
-		var manifest = Contacts.getCacheManifest() || {};
-		manifest[entity] = name;
-		Contacts.cache.set('manifest', manifest);
-
-		if (!profile || profile.name !== newProfile.name || profile.avatarDigest !== newProfile.avatarDigest) {
-			Contacts.profileChanged(entity, newProfile, profile);
-		}
+		return Contacts.cache.get(entity).then(function (profile) {
+			var newProfile = {
+				name: name
+			};
+			if (avatarDigest) {
+				newProfile.avatarDigest = avatarDigest;
+			}
+			return Contacts.cache.set(entity, newProfile).then(function () {
+				Contacts.getCacheManifest().then(function (manifest) {
+					manifest = manifest || {};
+					manifest[entity] = name;
+					return Contacts.setCacheManifest(manifest).then(function () {
+						if (!profile || profile.name !== newProfile.name || profile.avatarDigest !== newProfile.avatarDigest) {
+							Contacts.profileChanged(entity, newProfile, profile);
+						}
+					});
+				});
+			});
+		});
 	};
 
 	Contacts.getCachedProfile = function (entity) {
@@ -325,54 +359,52 @@ var TentContactsService = {};
 
 	// find contact by entity
 	Contacts.find = function (entity, callback) {
-		var profile = Contacts.getCachedProfile(entity);
-		profile = profile || {
-			name: entity.replace(/https?:\/\//, '')
-		};
-		profile.entity = entity;
-		callback(profile);
+		Contacts.getCachedProfile(entity).then(function (profile) {
+			profile = profile || {
+				name: entity.replace(/https?:\/\//, '')
+			};
+			profile.entity = entity;
+			callback(profile);
+		});
 	};
 
 	// find contacts with name or entity matching queryString
 	Contacts.search = function (queryString, callback) {
-		var manifest = Contacts.getCacheManifest() || {};
-		var profiles = [];
-		var entity, name, score, profile;
-		for (entity in manifest) {
-			if (!manifest.hasOwnProperty(entity)) {
-				continue;
-			}
-			name = manifest[entity];
-
-			score = (StringScore(entity, queryString) + StringScore(name, queryString)) / 2;
-			if (score === 0) {
-				continue;
-			}
-
-			profile = Contacts.cache.get(entity);
-			if (!profile) {
-				continue;
-			}
-
-			profile.score = score;
-			profile.entity = entity;
-			profiles.push(profile);
-		}
-
-		// sort matched profiles in order of score (high to low)
-		profiles = profiles.sort(function (a, b) {
-			a = a.score;
-			b = b.score;
-			if (a > b) {
-				return -1;
-			}
-			if (a < b) {
-				return 1;
-			}
-			return 0;
+		Contacts.getCacheManifest().then(function (manifest) {
+			manifest = manifest || {};
+			return Promise.all(Object.keys(manifest).map(function (entity) {
+				var name = manifest[entity];
+				var score = (StringScore(entity, queryString) + StringScore(name, queryString)) / 2;
+				return [entity, score];
+			}).filter(function (item) {
+				var score = item[1];
+				return score > 0;
+			}).map(function (item) {
+				var entity = item[0];
+				var score = item[1];
+				return Contacts.cache.get(entity).then(function (profile) {
+					profile.score = score;
+					profile.entity = entity;
+					return profile;
+				});
+			})).then(function (profiles) {
+				// sort matched profiles in order of score (high to low)
+				return profiles.sort(function (a, b) {
+					a = a.score;
+					b = b.score;
+					if (a > b) {
+						return -1;
+					}
+					if (a < b) {
+						return 1;
+					}
+					return 0;
+				});
+			});
+		}).then(callback).catch(function (err) {
+			console.log("Error:", String(err));
+			throw err;
 		});
-
-		callback(profiles);
 	};
 
 	Contacts.onChange = function (eventID, entity, callback) {
