@@ -19,19 +19,19 @@ var TentContactsService = {};
 		return this.namespace +':'+ key;
 	};
 	Cache.prototype.set = function (key, val) {
-		if ( (typeof window === "undefined") || !window.localStorage ) {
+		if ( typeof localStorage === "undefined" ) {
 			return;
 		}
 		window.localStorage.setItem(this.expandKey(key), JSON.stringify(val));
 	};
 	Cache.prototype.get = function (key) {
-		if ( (typeof window === "undefined") || !window.localStorage ) {
+		if ( typeof localStorage === "undefined" ) {
 			return null;
 		}
 		return JSON.parse(window.localStorage.getItem(this.expandKey(key)));
 	};
 	Cache.prototype.remove = function (key) {
-		if ( (typeof window === "undefined") || !window.localStorage ) {
+		if ( typeof localStorage === "undefined" ) {
 			return;
 		}
 		window.localStorage.removeItem(this.expandKey(key));
