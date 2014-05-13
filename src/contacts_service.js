@@ -136,8 +136,7 @@ var TentContactsService = {};
 			Contacts.cache = null;
 			clearInterval(__syncInterval);
 		}).catch(function (err) {
-			console.log("Error:", String(err));
-			throw err;
+			setTimeout(function () { throw err; }, 0);
 		});
 	};
 
@@ -267,8 +266,7 @@ var TentContactsService = {};
 				since: cursor.since
 			}).then(handleSuccess);
 		}).catch(function (err) {
-			console.log("Error:", String(err));
-			throw err;
+			setTimeout(function () { throw err; }, 0);
 		});
 	};
 
@@ -402,8 +400,7 @@ var TentContactsService = {};
 				});
 			});
 		}).then(callback).catch(function (err) {
-			console.log("Error:", String(err));
-			throw err;
+			setTimeout(function () { throw err; }, 0);
 		});
 	};
 
