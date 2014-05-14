@@ -50,32 +50,6 @@
 		iframe.addEventListener("load", sendPing, false);
 	};
 
-	Contacts.runSharedWorker = function (sendPing) {
-		if ( !Contacts.workerURL ) {
-			setTimeout(function () {
-				throw new Error(Contacts.displayName +".workerURL must be set! Falling back to iframe.");
-			}, 0);
-			this.runIframe();
-			return;
-		}
-
-		var initFn = function (e) {
-			if (e.data.name === "ping") {
-				sendPing();
-				worker.removeEventListener("message", initFn, false);
-			}
-		};
-
-		var worker = new SharedWorker(Contacts.workerURL);
-		Contacts.worker = worker;
-		worker.port.addEventListener("message", Contacts.receiveMessage, false);
-		worker.port.addEventListener("message", initFn, false);
-		worker.onerror = function (event) {
-			throw new Error(event.message + " (" + event.filename + ":" + event.lineno + ")");
-		};
-		worker.port.start();
-	};
-
 	Contacts.run = function () {
 		function sendPing() {
 			var initData = {
@@ -87,11 +61,7 @@
 			Contacts.deliverMessage(initData);
 		}
 
-		if (window.SharedWorker) {
-			this.runSharedWorker(sendPing);
-		} else {
-			this.runIframe(sendPing);
-		}
+		this.runIframe(sendPing);
 	};
 
 	Contacts.stop = function (callback) {
@@ -144,9 +114,7 @@
 		delete data.callback;
 		delete data.thisArg;
 
-		if (Contacts.worker) {
-			Contacts.worker.port.postMessage(data);
-		} else if (Contacts.iframe) {
+		if (Contacts.iframe) {
 			Contacts.iframe.contentWindow.postMessage(data, Contacts.daemonURL);
 		} else {
 			throw new Error(Contacts.displayName +".deliverMessage: No worker to deliver message to! "+ JSON.stringify(data));
@@ -158,12 +126,6 @@
 			if (Contacts.daemonURL.substr(0, event.origin.length) !== event.origin) {
 				return; // ignore everything not from the iframe
 			}
-		}
-
-		if (event.data.name === 'ping') {
-			// used by SharedWorker
-			// let other event handler get this one
-			return;
 		}
 
 		if (event.data.name === 'ready') {

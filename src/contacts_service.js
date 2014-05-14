@@ -11,20 +11,6 @@ var TentContactsService = {};
 
   "use strict";
 
-	var ports = [];
-
-	var console = {
-		log: function () {
-			var args = Array.prototype.slice.call(arguments);
-			ports.forEach(function (port) {
-				port.postMessage({
-					name: "console",
-					args: args
-				});
-			});
-		}
-	};
-
 	// Simple localStorage abstration
 	var Cache = function () {
 		this.namespace = 'c';
@@ -145,18 +131,7 @@ var TentContactsService = {};
 		});
 	};
 
-	Contacts.receiveConnection = function (event) {
-		var port = event.ports[0];
-		ports.push(port);
-		port.onmessage = function (e) {
-			Contacts.receiveMessage(e, port);
-		};
-		port.postMessage({
-			name: "ping"
-		});
-	};
-
-	Contacts.receiveMessage = function (event, port) {
+	Contacts.receiveMessage = function (event) {
 		if (typeof window !== "undefined") {
 			if (!Contacts.allowedOrigin.test(event.origin)) {
 				return; // ignore everything from "un-trusted" hosts
@@ -177,11 +152,7 @@ var TentContactsService = {};
 			if (name) {
 				data.name = name;
 			}
-			if (port) {
-				port.postMessage(data);
-			} else {
-				event.source.postMessage(data, event.origin);
-			}
+			event.source.postMessage(data, event.origin);
 		};
 
 		switch (event.data.name) {
@@ -271,7 +242,6 @@ var TentContactsService = {};
 			}).then(handleSuccess);
 		}).catch(function (err) {
 			setTimeout(function () { throw err; }, 0);
-			console.log("Contacts.sync Error:", String(err));
 		});
 	};
 
