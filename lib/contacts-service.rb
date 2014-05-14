@@ -11,7 +11,10 @@ module ContactsService
     end
 
     self.settings[:public_dir] ||= File.expand_path('../../public/assets', __FILE__) # lib/../public/assets
-    self.settings[:asset_paths] ||= [ File.expand_path('../../src', __FILE__) ]
+    self.settings[:asset_paths] ||= [
+      File.expand_path('../../src', __FILE__),
+      File.expand_path('../../vendor', __FILE__)
+    ]
     self.settings[:asset_paths].uniq!
   end
 

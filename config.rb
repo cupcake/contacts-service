@@ -14,7 +14,7 @@ StaticSprockets.configure(
   :asset_roots => [
     File.expand_path(File.dirname(__FILE__)),
   ],
-  :asset_types => %w( src ), # we only have javascripts and they're in {root}/src
+  :asset_types => %w( src vendor ), # we only have javascripts and they're in {root}/src and {root}/vendor
   :layout => File.expand_path(File.join(File.dirname(__FILE__), 'layout', 'contacts_service.html.erb')),
   :layout_output_name => 'contacts_service.html',
   :output_dir => ENV['OUTPUT_DIR'] || File.expand_path(File.join(File.dirname(__FILE__), 'build')),

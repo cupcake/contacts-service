@@ -20,6 +20,7 @@
 	"globals": {
 		"TentClient": false,
 		"Marbles": false,
-		"Promise": false
+		"Promise": false,
+		"localforage": false
 	}
 }

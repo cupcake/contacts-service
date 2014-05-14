@@ -2,6 +2,8 @@
 //= require marbles/http/middleware
 //= require tent-client
 //= require_self
+//= require es6promise
+//= require localforage
 //= require ./service_config
 //= require ./service_boot
 
@@ -11,44 +13,20 @@ var TentContactsService = {};
 
   "use strict";
 
-	// Simple localStorage abstration
 	var Cache = function () {
 		this.namespace = 'c';
-		this.__cache = {};
 	};
 	Cache.prototype.expandKey = function (key) {
 		return this.namespace +':'+ key;
 	};
 	Cache.prototype.set = function (key, val) {
-		return new Promise(function (resolve) {
-			if ( typeof localStorage === "undefined" ) {
-				this.__cache[key] = val;
-				resolve();
-			} else {
-				window.localStorage.setItem(this.expandKey(key), JSON.stringify(val));
-				resolve();
-			}
-		}.bind(this));
+		return localforage.setItem(this.expandKey(key), val);
 	};
 	Cache.prototype.get = function (key) {
-		return new Promise(function (resolve) {
-			if ( typeof localStorage === "undefined" ) {
-				resolve(this.__cache[key]);
-			} else {
-				resolve(JSON.parse(window.localStorage.getItem(this.expandKey(key))));
-			}
-		}.bind(this));
+		return localforage.getItem(this.expandKey(key));
 	};
 	Cache.prototype.remove = function (key) {
-		return new Promise(function (resolve) {
-			if ( typeof localStorage === "undefined" ) {
-				delete this.__cache[key];
-				resolve();
-			} else {
-				window.localStorage.removeItem(this.expandKey(key));
-				resolve();
-			}
-		}.bind(this));
+		return localforage.removeItem(this.expandKey(key));
 	};
 
 	// Simple scoring algorithm
@@ -90,7 +68,7 @@ var TentContactsService = {};
 	};
 
 	Contacts.init = function (entity, serverMetaPost, credentials, callback) {
-		return new Promise(function (resolve) {
+		return localforage.ready().then(function () {
 			if (Contacts.ready) {
 				return;
 			}
@@ -99,7 +77,7 @@ var TentContactsService = {};
 			Contacts.cache = new Cache();
 			__syncInterval = setInterval(Contacts.sync, 14400000); // sync every 4 hours
 			Contacts.sync();
-			resolve();
+			return true;
 		}).then(callback).catch(function (err) {
 			setTimeout(function () { throw err; }, 0);
 		});

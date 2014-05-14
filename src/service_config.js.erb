@@ -1,1 +1,10 @@
 TentContactsService.allowedOrigin = /<%= ENV['CONTACTS_ALLOWED_ORIGIN'] || '^.+$' %>/;
+
+localforage.config({
+    name        : 'TentContacts',
+    version     : 1.0,
+    size        : 4980736, // Size of database, in bytes. WebSQL-only for now.
+    storeName   : 'TentContacts',
+    description : 'Cache of all your Tent contacts'
+});
+
